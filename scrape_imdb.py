@@ -1,36 +1,51 @@
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 
-def scrape_imdb_top_movies():
-    url = 'https://www.imdb.com/chart/top/'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+# Configura las opciones de Chrome
+chrome_options = Options()
+# Descomentar esta línea si quieres ver el navegador
+chrome_options.add_argument("--headless")
 
-    movies = []
-    
-    # Encuentra todos los elementos que contienen la información de las películas
-    rows = soup.select('tbody.lister-list tr')
-    
-    for row in rows:
-        title_column = row.find('td', class_='titleColumn')
-        if title_column:
-            title = title_column.a.text
-            year = title_column.span.text.strip('()')
-            rating_column = row.find('td', class_='imdbRating')
-            rating = rating_column.strong.text if rating_column else 'N/A'
-            movie_url = 'https://www.imdb.com' + title_column.a['href']
-            
-            # Obtener el género de cada película
-            movie_response = requests.get(movie_url)
-            movie_soup = BeautifulSoup(movie_response.content, 'html.parser')
-            genre_tag = movie_soup.find('span', class_='sc-16ede01-2 iPpjzv')
-            genre = genre_tag.text if genre_tag else 'N/A'
-            
-            movies.append({'title': title, 'year': year, 'rating': rating, 'genre': genre})
+# Ruta al archivo chromedriver.exe
+service = Service('C:\\Users\\dario\\OneDrive\\Escritorio\\chromedriver-win64\\chromedriver.exe')
 
-    return pd.DataFrame(movies)
+# Inicializa el driver
+driver = webdriver.Chrome(service=service, options=chrome_options)
 
-df = scrape_imdb_top_movies()
+# URL de IMDb (ejemplo)
+url = 'https://www.imdb.com/chart/top'
+
+# Abrir la página web
+driver.get(url)
+
+# Esperar a que los elementos estén disponibles
+wait = WebDriverWait(driver, 10)
+titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]')))
+ratings = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="ratingColumn imdbRating"]')))
+
+# Crear listas para almacenar los datos
+movie_titles = []
+movie_ratings = []
+
+print(f"Titles found: {len(titles)}")
+print(f"Ratings found: {len(ratings)}")
+
+# Iterar sobre los elementos y extraer los datos
+for title, rating in zip(titles, ratings):
+    movie_titles.append(title.text)
+    movie_ratings.append(rating.text)
+
+# Crear un DataFrame
+data = {'Title': movie_titles, 'Rating': movie_ratings}
+df = pd.DataFrame(data)
+
+# Guardar los datos en un archivo CSV
 df.to_csv('imdb_top_movies.csv', index=False)
-print(df.head())
+
+# Cerrar el driver
+driver.quit()
