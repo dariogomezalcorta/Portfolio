@@ -5,14 +5,15 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
+from selenium.common.exceptions import TimeoutException
 
 # Configura las opciones de Chrome
 chrome_options = Options()
 # Descomentar esta línea si quieres ver el navegador
-chrome_options.add_argument("--headless")
+# chrome_options.add_argument("--headless")
 
 # Ruta al archivo chromedriver.exe
-service = Service('C:\\Users\\dario\\OneDrive\\Escritorio\\chromedriver-win64\\chromedriver.exe')
+service = Service('D:\\chromedriver-win64\\chromedriver.exe')  # Asegúrate de que esta ruta sea correcta
 
 # Inicializa el driver
 driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -24,28 +25,42 @@ url = 'https://www.imdb.com/chart/top'
 driver.get(url)
 
 # Esperar a que los elementos estén disponibles
-wait = WebDriverWait(driver, 10)
-titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]')))
-ratings = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="ratingColumn imdbRating"]')))
+wait = WebDriverWait(driver, 60)  # Aumenta el tiempo de espera a 60 segundos
 
-# Crear listas para almacenar los datos
-movie_titles = []
-movie_ratings = []
+try:
+    # Usar XPaths basados en la imagen
+    titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/h3[@class="lister-item-header"]/a')))
+    print(f"Títulos encontrados: {len(titles)}")
 
-print(f"Titles found: {len(titles)}")
-print(f"Ratings found: {len(ratings)}")
+    years = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/h3[@class="lister-item-header"]/span[@class="lister-item-year"]')))
+    print(f"Años encontrados: {len(years)}")
 
-# Iterar sobre los elementos y extraer los datos
-for title, rating in zip(titles, ratings):
-    movie_titles.append(title.text)
-    movie_ratings.append(rating.text)
+    durations = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/p[@class="text-muted"]/span[@class="runtime"]')))
+    print(f"Duraciones encontradas: {len(durations)}")
 
-# Crear un DataFrame
-data = {'Title': movie_titles, 'Rating': movie_ratings}
-df = pd.DataFrame(data)
+    # Crear listas para almacenar los datos
+    movie_titles = []
+    movie_years = []
+    movie_durations = []
 
-# Guardar los datos en un archivo CSV
-df.to_csv('imdb_top_movies.csv', index=False)
+    # Iterar sobre los elementos y extraer los datos
+    for title, year, duration in zip(titles, years, durations):
+        movie_titles.append(title.text)
+        movie_years.append(year.text)
+        movie_durations.append(duration.text)
+
+    # Crear un DataFrame
+    data = {'Title': movie_titles, 'Year': movie_years, 'Duration': movie_durations}
+    df = pd.DataFrame(data)
+
+    # Guardar los datos en un archivo CSV
+    df.to_csv('imdb_top_movies.csv', index=False)
+
+    print("Datos guardados en 'imdb_top_movies.csv'")
+
+except TimeoutException as e:
+    print("TimeoutException: No se pudieron encontrar los elementos en la página web.")
+    print(e)
 
 # Cerrar el driver
 driver.quit()
