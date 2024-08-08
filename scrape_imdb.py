@@ -13,7 +13,7 @@ chrome_options = Options()
 # chrome_options.add_argument("--headless")
 
 # Ruta al archivo chromedriver.exe
-service = Service('D:\\chromedriver-win64\\chromedriver.exe')  # Asegúrate de que esta ruta sea correcta
+service = Service(r'C:\Users\dario\OneDrive\Escritorio\chromedriver-win64\chromedriver.exe')  # Asegúrate de que esta ruta sea correcta
 
 # Inicializa el driver
 driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -28,29 +28,29 @@ driver.get(url)
 wait = WebDriverWait(driver, 60)  # Aumenta el tiempo de espera a 60 segundos
 
 try:
-    # Usar XPaths basados en la imagen
-    titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/h3[@class="lister-item-header"]/a')))
+    # Usar XPaths basados en la estructura actual de la página
+    titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]/a')))
     print(f"Títulos encontrados: {len(titles)}")
 
-    years = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/h3[@class="lister-item-header"]/span[@class="lister-item-year"]')))
+    years = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]/span[@class="secondaryInfo"]')))
     print(f"Años encontrados: {len(years)}")
 
-    durations = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@class="lister-item-content"]/p[@class="text-muted"]/span[@class="runtime"]')))
-    print(f"Duraciones encontradas: {len(durations)}")
+    ratings = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="ratingColumn imdbRating"]/strong')))
+    print(f"Calificaciones encontradas: {len(ratings)}")
 
     # Crear listas para almacenar los datos
     movie_titles = []
     movie_years = []
-    movie_durations = []
+    movie_ratings = []
 
     # Iterar sobre los elementos y extraer los datos
-    for title, year, duration in zip(titles, years, durations):
+    for title, year, rating in zip(titles, years, ratings):
         movie_titles.append(title.text)
-        movie_years.append(year.text)
-        movie_durations.append(duration.text)
+        movie_years.append(year.text.strip('()'))
+        movie_ratings.append(rating.text)
 
     # Crear un DataFrame
-    data = {'Title': movie_titles, 'Year': movie_years, 'Duration': movie_durations}
+    data = {'Title': movie_titles, 'Year': movie_years, 'Rating': movie_ratings}
     df = pd.DataFrame(data)
 
     # Guardar los datos en un archivo CSV
