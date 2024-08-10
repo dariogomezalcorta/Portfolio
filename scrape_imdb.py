@@ -1,66 +1,67 @@
+'''
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import pandas as pd
-from selenium.common.exceptions import TimeoutException
+from webdriver_manager.chrome import ChromeDriverManager
 
-# Configura las opciones de Chrome
-chrome_options = Options()
-# Descomentar esta línea si quieres ver el navegador
-# chrome_options.add_argument("--headless")
+# Configurar el servicio del driver
+service = Service(ChromeDriverManager().install())
 
-# Ruta al archivo chromedriver.exe
-service = Service(r'C:\Users\dario\OneDrive\Escritorio\chromedriver-win64\chromedriver.exe')  # Asegúrate de que esta ruta sea correcta
+# Inicializar el driver de Chrome
+driver = webdriver.Chrome(service=service)
 
-# Inicializa el driver
-driver = webdriver.Chrome(service=service, options=chrome_options)
+# Navegar a la página de IMDb
+driver.get('https://www.imdb.com/chart/top/')
 
-# URL de IMDb (ejemplo)
-url = 'https://www.imdb.com/chart/top'
+# Obtener los elementos de las películas
+peliculas = driver.find_elements(By.XPATH, '//li[@class = "ipc-metadata-list-summary-item sc-10233bc-0 TwzGn cli-parent"]')
 
-# Abrir la página web
-driver.get(url)
+# Iterar sobre cada película y extraer el título y la metadata
+for pelicula in peliculas:
+    try:
+        titulo = pelicula.find_element(By.XPATH, './/h3[@class = "ipc-title__text"]').text
+        print(f"Título: {titulo}")
+    except:
+        print("No se pudo encontrar el título.")
+    
+    try:
+        metadata_elements = pelicula.find_elements(By.XPATH, './/span[contains(@class, "cli-title-metadata-item")]')
+        metadata = [element.text for element in metadata_elements]
+        print(f"Metadata: {', '.join(metadata)}")
+    except:
+        print("No se pudo encontrar la metadata.")
+    
+    print("--------------------------------------------------")
 
-# Esperar a que los elementos estén disponibles
-wait = WebDriverWait(driver, 60)  # Aumenta el tiempo de espera a 60 segundos
+# Cerrar el navegador
+driver.quit()
+'''
 
-try:
-    # Usar XPaths basados en la estructura actual de la página
-    titles = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]/a')))
-    print(f"Títulos encontrados: {len(titles)}")
+import csv
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
-    years = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="titleColumn"]/span[@class="secondaryInfo"]')))
-    print(f"Años encontrados: {len(years)}")
+driver = webdriver.Chrome(r'D:/chromedriver-win64/chromedriver.exe')
+driver.get('https://www.imdb.com/chart/top/')
 
-    ratings = wait.until(EC.presence_of_all_elements_located((By.XPATH, '//td[@class="ratingColumn imdbRating"]/strong')))
-    print(f"Calificaciones encontradas: {len(ratings)}")
+peliculas = driver.find_elements(By.XPATH, '//li[@class = "ipc-metadata-list-summary-item sc-10233bc-0 TwzGn cli-parent"]')
 
-    # Crear listas para almacenar los datos
-    movie_titles = []
-    movie_years = []
-    movie_ratings = []
+# Abre un archivo CSV para escribir
+with open('peliculas_imdb.csv', 'w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Titulo', 'Año', 'Duracion', 'Clasificación'])
 
-    # Iterar sobre los elementos y extraer los datos
-    for title, year, rating in zip(titles, years, ratings):
-        movie_titles.append(title.text)
-        movie_years.append(year.text.strip('()'))
-        movie_ratings.append(rating.text)
+    for pelicula in peliculas:
+        titulo = pelicula.find_element(By.XPATH, './/h3[@class = "ipc-title__text"]').text
+        metadata = pelicula.find_element(By.XPATH, './/div[@class = "sc-b189961a-7 btCcOY cli-title-metadata"]').text
+        
+        # Divide la metadata en Año, Duración y Clasificación
+        metadata_parts = metadata.split(", ")
+        año = metadata_parts[0]
+        duracion = metadata_parts[1] if len(metadata_parts) > 1 else ''
+        clasificacion = metadata_parts[2] if len(metadata_parts) > 2 else 'Not Rated'
+        
+        # Escribe los datos en el archivo CSV
+        writer.writerow([titulo, año, duracion, clasificacion])
 
-    # Crear un DataFrame
-    data = {'Title': movie_titles, 'Year': movie_years, 'Rating': movie_ratings}
-    df = pd.DataFrame(data)
-
-    # Guardar los datos en un archivo CSV
-    df.to_csv('imdb_top_movies.csv', index=False)
-
-    print("Datos guardados en 'imdb_top_movies.csv'")
-
-except TimeoutException as e:
-    print("TimeoutException: No se pudieron encontrar los elementos en la página web.")
-    print(e)
-
-# Cerrar el driver
 driver.quit()
